@@ -1,0 +1,19 @@
+{
+  "name": "mathphysics-backend",
+  "version": "1.0.0",
+  "description": "API backend de MathPhysics - Modulo de Autenticacion",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "katex": "^0.18.7",
+    "mysql2": "^3.11.0"
+  }
+}
