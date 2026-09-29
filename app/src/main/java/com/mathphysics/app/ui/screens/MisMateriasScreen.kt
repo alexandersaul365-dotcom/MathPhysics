@@ -9,12 +9,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,20 +28,24 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mathphysics.app.R
 import com.mathphysics.app.data.model.Materia
+import com.mathphysics.app.data.repository.AuthRepository
 import com.mathphysics.app.ui.components.BottomNavBar
 import com.mathphysics.app.ui.components.OnResumeEffect
 import com.mathphysics.app.ui.components.SeccionNav
 import com.mathphysics.app.ui.theme.*
 import com.mathphysics.app.ui.viewmodel.MisMateriasViewModel
 import com.mathphysics.app.ui.viewmodel.UiState
+import kotlinx.coroutines.launch
 
 @Composable
 fun MisMateriasScreen(
     onMateriaClick: (Materia) -> Unit,
     onVerRacha: () -> Unit = {},
+    onSesionCerrada: () -> Unit = {},
     viewModel: MisMateriasViewModel = viewModel(),
 ) {
     val estado by viewModel.estado.collectAsState()
+    val scope = rememberCoroutineScope()
     OnResumeEffect { viewModel.cargarMaterias() }
 
     Scaffold(
@@ -76,6 +82,14 @@ fun MisMateriasScreen(
                     }
                     IconButton(onClick = onVerRacha) {
                         Icon(Icons.Default.LocalFireDepartment, contentDescription = "Racha", tint = Amber, modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = {
+                        scope.launch {
+                            AuthRepository().cerrarSesion()
+                            onSesionCerrada()
+                        }
+                    }) {
+                        Icon(Icons.Default.ExitToApp, contentDescription = "Cerrar sesión", tint = TextoSecundario, modifier = Modifier.size(20.dp))
                     }
                 }
             }

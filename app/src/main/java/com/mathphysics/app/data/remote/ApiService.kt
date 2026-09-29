@@ -4,15 +4,19 @@ import com.mathphysics.app.data.model.Ejercicio
 import com.mathphysics.app.data.model.ErrorPendiente
 import com.mathphysics.app.data.model.Insignia
 import com.mathphysics.app.data.model.Leccion
+import com.mathphysics.app.data.model.LoginRequest
 import com.mathphysics.app.data.model.Materia
+import com.mathphysics.app.data.model.MensajeResultado
 import com.mathphysics.app.data.model.PreguntaTeorica
 import com.mathphysics.app.data.model.Racha
 import com.mathphysics.app.data.model.RankingEntry
 import com.mathphysics.app.data.model.Recompensas
+import com.mathphysics.app.data.model.RegistroRequest
 import com.mathphysics.app.data.model.RespuestaPreguntaTeoricaRequest
 import com.mathphysics.app.data.model.RespuestaPreguntaTeoricaResultado
 import com.mathphysics.app.data.model.RespuestaRequest
 import com.mathphysics.app.data.model.RespuestaResultado
+import com.mathphysics.app.data.model.SesionResultado
 import com.mathphysics.app.data.model.Subtema
 import com.mathphysics.app.data.model.SubtemaConEjercicios
 import com.mathphysics.app.data.model.Tema
@@ -23,6 +27,18 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+
+    // --- Autenticación (RQF1-4) ---
+    @POST("api/auth/registro")
+    suspend fun registrar(@Body body: RegistroRequest): SesionResultado
+
+    @POST("api/auth/login")
+    suspend fun iniciarSesion(@Body body: LoginRequest): SesionResultado
+
+    // El token va en el header Authorization, agregado automáticamente por
+    // el interceptor de RetrofitClient — no necesita parámetros.
+    @POST("api/auth/logout")
+    suspend fun cerrarSesion(): MensajeResultado
 
     // --- Contenido educativo ---
     @GET("api/contenido/materias")

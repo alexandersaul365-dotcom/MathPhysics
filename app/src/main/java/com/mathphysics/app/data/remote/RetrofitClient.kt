@@ -1,5 +1,6 @@
 package com.mathphysics.app.data.remote
 
+import com.mathphysics.app.data.local.SessionManager
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -35,8 +36,23 @@ object RetrofitClient {
         chain.proceed(requestConNgrokHeader)
     }
 
+    // Adjunta el JWT guardado (si hay uno) a TODAS las peticiones. Las rutas
+    // que todavía no lo exigen simplemente lo ignoran — queda listo para
+    // cuando se proteja el resto de los endpoints con el middleware
+    // `autenticar` (pendiente, ver backlog del proyecto).
+    private val authInterceptor = okhttp3.Interceptor { chain ->
+        val token = SessionManager.token
+        val request = if (token != null) {
+            chain.request().newBuilder().addHeader("Authorization", "Bearer $token").build()
+        } else {
+            chain.request()
+        }
+        chain.proceed(request)
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(ngrokBypassInterceptor)
+        .addInterceptor(authInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)

@@ -11,25 +11,25 @@ import com.mathphysics.app.data.model.RespuestaResultado
 import com.mathphysics.app.data.model.Subtema
 import com.mathphysics.app.data.model.SubtemaConEjercicios
 import com.mathphysics.app.data.model.Tema
+import com.mathphysics.app.data.local.SessionManager
 import com.mathphysics.app.data.remote.ApiService
-import com.mathphysics.app.data.remote.Config
 import com.mathphysics.app.data.remote.RetrofitClient
 
 class ContenidoRepository(
     private val api: ApiService = RetrofitClient.apiService,
 ) {
-    suspend fun obtenerMaterias(): List<Materia> = api.listarMaterias(Config.USUARIO_PRUEBA_ID)
+    suspend fun obtenerMaterias(): List<Materia> = api.listarMaterias(SessionManager.usuarioId)
 
-    suspend fun obtenerTemas(materiaId: String): List<Tema> = api.listarTemas(materiaId, Config.USUARIO_PRUEBA_ID)
+    suspend fun obtenerTemas(materiaId: String): List<Tema> = api.listarTemas(materiaId, SessionManager.usuarioId)
 
-    suspend fun obtenerSubtemas(temaId: Int): List<Subtema> = api.listarSubtemas(temaId, Config.USUARIO_PRUEBA_ID)
+    suspend fun obtenerSubtemas(temaId: Int): List<Subtema> = api.listarSubtemas(temaId, SessionManager.usuarioId)
 
     suspend fun obtenerLeccion(subtemaId: Int): Leccion = api.obtenerLeccion(subtemaId)
 
     suspend fun obtenerPreguntasTeoricas(subtemaId: Int): List<PreguntaTeorica> = api.listarPreguntasTeoricas(subtemaId)
 
     suspend fun responderPreguntaTeorica(preguntaId: Int, opcionId: Int): RespuestaPreguntaTeoricaResultado =
-        api.responderPreguntaTeorica(preguntaId, RespuestaPreguntaTeoricaRequest(Config.USUARIO_PRUEBA_ID, opcionId))
+        api.responderPreguntaTeorica(preguntaId, RespuestaPreguntaTeoricaRequest(SessionManager.usuarioId, opcionId))
 
     suspend fun listarSubtemasConEjercicios(): List<SubtemaConEjercicios> = api.listarSubtemasConEjercicios()
 
@@ -38,5 +38,5 @@ class ContenidoRepository(
     suspend fun obtenerEjercicio(ejercicioId: Int): Ejercicio = api.obtenerEjercicio(ejercicioId)
 
     suspend fun responder(ejercicioId: Int, respuesta: Map<String, Any>, tiempoSegundos: Int? = null): RespuestaResultado =
-        api.responderEjercicio(ejercicioId, RespuestaRequest(Config.USUARIO_PRUEBA_ID, respuesta, tiempoSegundos))
+        api.responderEjercicio(ejercicioId, RespuestaRequest(SessionManager.usuarioId, respuesta, tiempoSegundos))
 }
