@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="teal_splash">#14A8B0</color>
+    <style name="Theme.MathPhysics" parent="android:Theme.Material.Light.NoActionBar"/>
+    <style name="Theme.MathPhysics.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/teal_splash</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.MathPhysics</item>
+    </style>
+</resources>

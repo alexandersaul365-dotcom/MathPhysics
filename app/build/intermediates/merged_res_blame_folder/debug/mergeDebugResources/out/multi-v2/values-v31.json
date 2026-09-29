@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.mathphysics.app-mergeDebugResources-49:/values-v31/values-v31.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\USER\\.gradle\\caches\\9.3.0\\transforms\\c25dad77a101f6efd4835e93fccd13ae\\workspace\\transformed\\core-splashscreen-1.0.1\\res\\values-v31\\values-v31.xml",
+                    "from": {
+                        "startLines": "2,9",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,473",
+                        "endLines": "8,13",
+                        "endColumns": "12,12",
+                        "endOffsets": "468,697"
+                    }
+                }
+            ]
+        }
+    ]
+}

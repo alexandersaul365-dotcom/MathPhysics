@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.mathphysics.app-mergeDebugResources-49:/values-night-v8/values-night-v8.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\USER\\.gradle\\caches\\9.3.0\\transforms\\c25dad77a101f6efd4835e93fccd13ae\\workspace\\transformed\\core-splashscreen-1.0.1\\res\\values-night-v8\\values-night-v8.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "85",
+                        "endOffsets": "136"
+                    }
+                }
+            ]
+        }
+    ]
+}
