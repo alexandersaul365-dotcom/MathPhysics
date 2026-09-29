@@ -163,21 +163,49 @@ async function responder(req, res) {
       'INSERT INTO historial_xp (usuario_id, concepto, xp_cantidad) VALUES (?, ?, ?)',
       [usuarioId, 'Pregunta teórica correcta', xpOtorgado]
     );
+  }
 
-    // RQNF30: el bono de subtema se otorga exactamente en el momento en que
-    // la ÚLTIMA teórica pendiente de ese subtema se contesta bien — esta
-    // respuesta acaba de insertarse arriba, así que el conteo ya la incluye.
+  // A partir de aquí, TODO lo relacionado con bonos de completado (RQNF30) e
+  // insignias se evalúa en CUALQUIER respuesta correcta — no solo la
+  // "primera vez que se acierta ESTA pregunta" (esPrimeraVezCorrecta). Un
+  // subtema/tema puede haber quedado 100% completo antes de que esta lógica
+  // existiera, o en una visita anterior; atar el chequeo a
+  // esPrimeraVezCorrecta significaba que esos casos nunca se volvían a
+  // revisar (bug real, reportado por el usuario con su Trigonometría ya
+  // completa sin insignia). La idempotencia de verdad la dan las tablas
+  // subtema_completado/tema_completado (INSERT IGNORE + affectedRows) y
+  // usuario_insignias — no esta bandera — así que es seguro recalcular esto
+  // en cada respuesta correcta, incluidas las de repaso libre.
+  if (correcta && subtemaId) {
     const totalSubtema = await totalTeoricasPublicadas(pool, subtemaId);
     const correctasSubtema = await contarTeoricasCorrectasSubtema(pool, usuarioId, subtemaId);
-    subtemaCompletado = totalSubtema > 0 && correctasSubtema === totalSubtema;
+    const subtemaAhoraCompleto = totalSubtema > 0 && correctasSubtema === totalSubtema;
 
-    if (subtemaCompletado) {
-      xpBonoSubtema = XP_BONO_SUBTEMA;
-      await pool.query('UPDATE xp_usuario SET total = total + ? WHERE usuario_id = ?', [xpBonoSubtema, usuarioId]);
-      await pool.query(
-        'INSERT INTO historial_xp (usuario_id, concepto, xp_cantidad) VALUES (?, ?, ?)',
-        [usuarioId, 'Subtema completado', xpBonoSubtema]
+    if (subtemaAhoraCompleto) {
+      // Marca de "una sola vez": si esta fila ya existía (subtema completado
+      // en una respuesta anterior, incluso antes de que este código
+      // existiera), affectedRows es 0 y no se vuelve a pagar el bono — pero
+      // igual seguimos para re-evaluar insignias, que también son
+      // idempotentes.
+      const [resultadoSubtema] = await pool.query(
+        'INSERT IGNORE INTO subtema_completado (usuario_id, subtema_id) VALUES (?, ?)',
+        [usuarioId, subtemaId]
       );
+      const esPrimeraVezSubtemaCompleto = resultadoSubtema.affectedRows > 0;
+      subtemaCompletado = esPrimeraVezSubtemaCompleto;
+
+      if (esPrimeraVezSubtemaCompleto) {
+        xpBonoSubtema = XP_BONO_SUBTEMA;
+        await pool.query(
+          'INSERT INTO xp_usuario (usuario_id, total) VALUES (?, 0) ON DUPLICATE KEY UPDATE usuario_id = usuario_id',
+          [usuarioId]
+        );
+        await pool.query('UPDATE xp_usuario SET total = total + ? WHERE usuario_id = ?', [xpBonoSubtema, usuarioId]);
+        await pool.query(
+          'INSERT INTO historial_xp (usuario_id, concepto, xp_cantidad) VALUES (?, ?, ?)',
+          [usuarioId, 'Subtema completado', xpBonoSubtema]
+        );
+      }
 
       await evaluarVelocista(pool, usuarioId, subtemaId, insigniasDesbloqueadas);
 
@@ -185,14 +213,28 @@ async function responder(req, res) {
       // completo (arriba) — el resto de sus hermanos no cambió en esta
       // petición, así que revisar su estado actual es seguro.
       if (temaId) {
-        temaCompletado = await temaCompleto(pool, usuarioId, temaId);
-        if (temaCompletado) {
-          xpBonoTema = XP_BONO_TEMA;
-          await pool.query('UPDATE xp_usuario SET total = total + ? WHERE usuario_id = ?', [xpBonoTema, usuarioId]);
-          await pool.query(
-            'INSERT INTO historial_xp (usuario_id, concepto, xp_cantidad) VALUES (?, ?, ?)',
-            [usuarioId, 'Tema completado', xpBonoTema]
+        const temaAhoraCompleto = await temaCompleto(pool, usuarioId, temaId);
+        if (temaAhoraCompleto) {
+          const [resultadoTema] = await pool.query(
+            'INSERT IGNORE INTO tema_completado (usuario_id, tema_id) VALUES (?, ?)',
+            [usuarioId, temaId]
           );
+          const esPrimeraVezTemaCompleto = resultadoTema.affectedRows > 0;
+          temaCompletado = esPrimeraVezTemaCompleto;
+
+          if (esPrimeraVezTemaCompleto) {
+            xpBonoTema = XP_BONO_TEMA;
+            await pool.query(
+              'INSERT INTO xp_usuario (usuario_id, total) VALUES (?, 0) ON DUPLICATE KEY UPDATE usuario_id = usuario_id',
+              [usuarioId]
+            );
+            await pool.query('UPDATE xp_usuario SET total = total + ? WHERE usuario_id = ?', [xpBonoTema, usuarioId]);
+            await pool.query(
+              'INSERT INTO historial_xp (usuario_id, concepto, xp_cantidad) VALUES (?, ?, ?)',
+              [usuarioId, 'Tema completado', xpBonoTema]
+            );
+          }
+
           await evaluarMaestroTema(pool, usuarioId, temaId, insigniasDesbloqueadas);
         }
       }
