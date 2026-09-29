@@ -1,5 +1,7 @@
 package com.mathphysics.app.data.model
 
+import com.google.gson.annotations.SerializedName
+
 data class Racha(
     val dias: Int,
     val enRiesgo: Boolean,
@@ -30,7 +32,7 @@ data class RankingEntry(
     val posicion: Int,
     val nombre: String,
     val xp: Int,
-    val esUsuarioActual: Boolean = false,
+    @SerializedName("es_usuario_actual") val esUsuarioActual: Boolean = false,
 )
 
 data class ErrorPendiente(

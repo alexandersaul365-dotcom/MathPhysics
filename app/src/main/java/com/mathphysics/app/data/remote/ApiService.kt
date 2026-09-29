@@ -77,5 +77,5 @@ interface ApiService {
     suspend fun obtenerRepaso(@Path("usuarioId") usuarioId: Int): List<ErrorPendiente>
 
     @GET("api/ranking")
-    suspend fun obtenerRanking(): List<RankingEntry>
+    suspend fun obtenerRanking(@Query("usuario_id") usuarioId: Int): List<RankingEntry>
 }

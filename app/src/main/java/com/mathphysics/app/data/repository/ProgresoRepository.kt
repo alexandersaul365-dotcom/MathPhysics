@@ -20,8 +20,7 @@ class ProgresoRepository(
 
     suspend fun obtenerRepaso(): List<ErrorPendiente> = api.obtenerRepaso(Config.USUARIO_PRUEBA_ID)
 
-    // Marca localmente cuál fila del ranking es el usuario de prueba (el
-    // backend no lo distingue, solo regresa el top general).
-    suspend fun obtenerRanking(): List<RankingEntry> =
-        api.obtenerRanking().map { it.copy(esUsuarioActual = it.nombre == Config.USUARIO_PRUEBA_NOMBRE) }
+    // El backend ya marca cuál fila es el usuario actual (es_usuario_actual)
+    // y agrega su posición exacta al final si no está en el top 10.
+    suspend fun obtenerRanking(): List<RankingEntry> = api.obtenerRanking(Config.USUARIO_PRUEBA_ID)
 }
