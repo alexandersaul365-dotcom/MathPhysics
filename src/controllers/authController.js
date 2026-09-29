@@ -5,6 +5,34 @@ const { firmarToken, hashToken } = require('../utils/tokens');
 const BCRYPT_ROUNDS = 10;
 const MAX_INTENTOS = Number(process.env.LOGIN_MAX_INTENTOS || 5);
 const BLOQUEO_MINUTOS = Number(process.env.LOGIN_BLOQUEO_MINUTOS || 15);
+// La sesión NO debe cerrarse sola — solo con logout explícito del usuario —
+// así que la fila de sesiones_jwt vive tanto como el propio JWT (365 días,
+// ver JWT_EXPIRES_IN en .env). Sin refresh token en este proyecto.
+const DURACION_SESION_MS = 365 * 24 * 60 * 60 * 1000;
+
+// Compartida por registrar() e iniciarSesion(): crea la fila de sesión y
+// devuelve el token + los datos públicos del usuario, en el mismo formato
+// para ambos endpoints (así el cliente puede tratar "me acabo de registrar"
+// igual que "acabo de iniciar sesión" — quedar logueado de una vez).
+async function crearSesion(usuario) {
+  const token = firmarToken(usuario);
+  const tokenHash = hashToken(token);
+  const expiraEn = new Date(Date.now() + DURACION_SESION_MS);
+
+  await pool.query(
+    'INSERT INTO sesiones_jwt (usuario_id, token_hash, expira_en, ultima_actividad) VALUES (?, ?, ?, NOW())',
+    [usuario.id, tokenHash, expiraEn]
+  );
+
+  return {
+    token,
+    usuario: {
+      id: usuario.id,
+      nombre_usuario: usuario.nombre_usuario,
+      rol: usuario.rol,
+    },
+  };
+}
 
 // RQF1 / RQNF1-3
 async function registrar(req, res) {
@@ -38,10 +66,10 @@ async function registrar(req, res) {
   await pool.query('INSERT INTO xp_usuario (usuario_id, total) VALUES (?, 0)', [resultado.insertId]);
   await pool.query('INSERT INTO rachas (usuario_id, dias_consecutivos) VALUES (?, 0)', [resultado.insertId]);
 
-  return res.status(201).json({
-    id: resultado.insertId,
-    nombre_usuario,
-  });
+  // Auto-login tras registrarse: el usuario queda con sesión activa de una
+  // vez, sin tener que volver a teclear su contraseña en la pantalla de login.
+  const sesion = await crearSesion({ id: resultado.insertId, nombre_usuario, rol: 'estudiante' });
+  return res.status(201).json(sesion);
 }
 
 // RQF2-3 / RQNF4-5
@@ -101,23 +129,8 @@ async function iniciarSesion(req, res) {
     [usuario.id]
   );
 
-  const token = firmarToken(usuario);
-  const tokenHash = hashToken(token);
-  const expiraEn = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 días
-
-  await pool.query(
-    'INSERT INTO sesiones_jwt (usuario_id, token_hash, expira_en, ultima_actividad) VALUES (?, ?, ?, NOW())',
-    [usuario.id, tokenHash, expiraEn]
-  );
-
-  return res.status(200).json({
-    token,
-    usuario: {
-      id: usuario.id,
-      nombre_usuario: usuario.nombre_usuario,
-      rol: usuario.rol,
-    },
-  });
+  const sesion = await crearSesion(usuario);
+  return res.status(200).json(sesion);
 }
 
 // RQF4 / RQNF6: borra únicamente la sesión de este token, sin afectar otras sesiones activas del mismo usuario.
