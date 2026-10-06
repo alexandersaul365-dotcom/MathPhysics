@@ -37,6 +37,8 @@ data class Leccion(
     val breadcrumb: String,
     val definicion: String?,
     val formula: String?,
+    // URLs relativas (/uploads/...) de las imágenes que subió el administrador; puede venir null en lecciones viejas.
+    val imagenes: List<String>? = null,
     val secciones: List<Seccion>,
     val subtemaId: Int,
 )

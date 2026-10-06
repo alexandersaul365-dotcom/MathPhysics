@@ -2,12 +2,22 @@ package com.mathphysics.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mathphysics.app.data.local.SessionManager
+import com.mathphysics.app.ui.screens.AdminBitacoraScreen
+import com.mathphysics.app.ui.screens.AdminContenidoFormScreen
+import com.mathphysics.app.ui.screens.AdminEjercicioFormScreen
+import com.mathphysics.app.ui.screens.AdminHomeScreen
+import com.mathphysics.app.ui.screens.AdminListaScreen
+import com.mathphysics.app.ui.screens.AdminPreguntaFormScreen
+import com.mathphysics.app.ui.screens.AdminReportesScreen
 import com.mathphysics.app.ui.screens.EjerciciosDisponiblesScreen
 import com.mathphysics.app.ui.screens.EjerciciosFlowScreen
 import com.mathphysics.app.ui.screens.InsigniasScreen
@@ -42,7 +52,18 @@ private object Rutas {
     const val RANKING = "ranking"
     const val REPASO = "repaso"
     const val REINTENTO = "reintento/{ejercicioId}/{respuestaAnterior}"
+
+    // Panel de administrador (RQF25-36)
+    const val ADMIN_HOME = "admin"
+    const val ADMIN_LISTA = "admin/lista/{recurso}"           // recurso: preguntas | ejercicios | contenido
+    const val ADMIN_FORM = "admin/form/{recurso}/{id}"        // id = -1 para uno nuevo
+    const val ADMIN_BITACORA = "admin/bitacora"
+    const val ADMIN_REPORTES = "admin/reportes"
 }
+
+// Pantalla a la que entra el usuario tras iniciar sesión (o al abrir la app con
+// sesión guardada): el admin va a su panel, el estudiante a Mis Materias.
+private fun pantallaInicial(): String = if (SessionManager.esAdmin) Rutas.ADMIN_HOME else Rutas.MATERIAS
 
 private fun encode(texto: String) = URLEncoder.encode(texto, "UTF-8")
 private fun decode(texto: String) = URLDecoder.decode(texto, "UTF-8")
@@ -53,16 +74,28 @@ fun MathPhysicsNavGraph() {
 
     // La sesión no debe cerrarse sola — se lee UNA vez al abrir la app; si
     // ya había un login guardado (de una vez anterior), se entra directo a
-    // Mis Materias sin pasar por Login. Un usuario admin entra exactamente
-    // igual que uno estudiante: todavía no existe panel de administrador.
-    val inicio = if (SessionManager.haySesionActiva()) Rutas.MATERIAS else Rutas.LOGIN
+    // la pantalla principal de su rol sin pasar por Login.
+    val inicio = if (SessionManager.haySesionActiva()) pantallaInicial() else Rutas.LOGIN
+
+    // Si el servidor invalida la sesión (p. ej. el admin pasó 30 min inactivo,
+    // RQNF35), el interceptor de Retrofit la limpia y avisa aquí: volvemos al Login.
+    val sesionExpirada by SessionManager.sesionExpirada.collectAsState()
+    LaunchedEffect(sesionExpirada) {
+        if (sesionExpirada) {
+            SessionManager.reconocerExpiracion()
+            navController.navigate(Rutas.LOGIN) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     CompositionLocalProvider(LocalNavController provides navController) {
         NavHost(navController = navController, startDestination = inicio) {
             composable(Rutas.LOGIN) {
                 LoginScreen(
                     onLoginExitoso = {
-                        navController.navigate(Rutas.MATERIAS) {
+                        navController.navigate(pantallaInicial()) {
                             popUpTo(0) { inclusive = true }
                             launchSingleTop = true
                         }
@@ -83,8 +116,64 @@ fun MathPhysicsNavGraph() {
                 )
             }
 
+            composable(Rutas.ADMIN_HOME) {
+                AdminHomeScreen(
+                    onIrALista = { recurso -> navController.navigate("admin/lista/$recurso") },
+                    onBitacora = { navController.navigate(Rutas.ADMIN_BITACORA) },
+                    onReportes = { navController.navigate(Rutas.ADMIN_REPORTES) },
+                    onModoEstudiante = { navController.navigate(Rutas.MATERIAS) },
+                    onSesionCerrada = {
+                        navController.navigate(Rutas.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = Rutas.ADMIN_LISTA,
+                arguments = listOf(navArgument("recurso") { type = NavType.StringType }),
+            ) { backStackEntry ->
+                val recurso = backStackEntry.arguments?.getString("recurso") ?: return@composable
+                AdminListaScreen(
+                    recurso = recurso,
+                    onNuevo = { navController.navigate("admin/form/$recurso/-1") },
+                    onEditar = { id -> navController.navigate("admin/form/$recurso/$id") },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = Rutas.ADMIN_FORM,
+                arguments = listOf(
+                    navArgument("recurso") { type = NavType.StringType },
+                    navArgument("id") { type = NavType.IntType },
+                ),
+            ) { backStackEntry ->
+                val recurso = backStackEntry.arguments?.getString("recurso") ?: return@composable
+                val idArg = backStackEntry.arguments?.getInt("id") ?: -1
+                val id = if (idArg == -1) null else idArg
+                when (recurso) {
+                    "ejercicios" -> AdminEjercicioFormScreen(id = id, onBack = { navController.popBackStack() })
+                    "contenido" -> AdminContenidoFormScreen(baseId = id, onBack = { navController.popBackStack() })
+                    else -> AdminPreguntaFormScreen(id = id, onBack = { navController.popBackStack() })
+                }
+            }
+
+            composable(Rutas.ADMIN_BITACORA) {
+                AdminBitacoraScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(Rutas.ADMIN_REPORTES) {
+                AdminReportesScreen(onBack = { navController.popBackStack() })
+            }
+
             composable(Rutas.MATERIAS) {
                 MisMateriasScreen(
+                    onVolverAPanel = if (SessionManager.esAdmin) {
+                        { navController.popBackStack(Rutas.ADMIN_HOME, inclusive = false) }
+                    } else null,
                     onMateriaClick = { materia ->
                         navController.navigate("temas/${materia.id}/${encode(materia.nombre)}")
                     },

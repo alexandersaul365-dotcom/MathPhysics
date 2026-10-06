@@ -19,7 +19,7 @@ object RetrofitClient {
     // Alternativas si NO estás usando ngrok:
     // - Emulador de Android Studio: "http://10.0.2.2:3000/"
     // - Celular físico por WiFi (misma red que la PC): "http://TU_IP_LOCAL:3000/"
-    private const val BASE_URL = "https://judiciary-caress-duly.ngrok-free.dev/"
+    const val BASE_URL = "https://judiciary-caress-duly.ngrok-free.dev/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -36,10 +36,8 @@ object RetrofitClient {
         chain.proceed(requestConNgrokHeader)
     }
 
-    // Adjunta el JWT guardado (si hay uno) a TODAS las peticiones. Las rutas
-    // que todavía no lo exigen simplemente lo ignoran — queda listo para
-    // cuando se proteja el resto de los endpoints con el middleware
-    // `autenticar` (pendiente, ver backlog del proyecto).
+    // Adjunta el JWT guardado (si hay uno) a TODAS las peticiones; el backend
+    // ya exige sesión válida en todas las rutas salvo login y registro.
     private val authInterceptor = okhttp3.Interceptor { chain ->
         val token = SessionManager.token
         val request = if (token != null) {
@@ -50,12 +48,30 @@ object RetrofitClient {
         chain.proceed(request)
     }
 
+    // Si el servidor responde 401 a una petición que SÍ llevaba token, la
+    // sesión ya no es válida (expiró por inactividad de admin, o se invalidó):
+    // se limpia la sesión local y se avisa al NavGraph para volver al Login.
+    // Se ignoran login/registro (ahí un 401 solo significa "credenciales
+    // incorrectas") y logout.
+    private val sesionExpiradaInterceptor = okhttp3.Interceptor { chain ->
+        val request = chain.request()
+        val response = chain.proceed(request)
+        val ruta = request.url.encodedPath
+        val esAuth = ruta.endsWith("/auth/login") || ruta.endsWith("/auth/registro") || ruta.endsWith("/auth/logout")
+        if (response.code == 401 && !esAuth && request.header("Authorization") != null) {
+            SessionManager.marcarExpirada()
+        }
+        response
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(ngrokBypassInterceptor)
         .addInterceptor(authInterceptor)
+        .addInterceptor(sesionExpiradaInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS) // subir imágenes de contenido (hasta 3 x 2 MB) por ngrok
         .build()
 
     val apiService: ApiService by lazy {

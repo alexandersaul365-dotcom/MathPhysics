@@ -13,7 +13,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mathphysics.app.data.model.Ejercicio
@@ -27,6 +32,17 @@ import kotlin.math.roundToInt
 // comparten el mismo patrón: valores fijos + un objetivo a lograr ajustando
 // la incógnita, y se califican contra el valor real que el estudiante dejó.
 // ============================================================================
+// ---------------------------------------------------------------------------
+// Colores con contraste en AMBOS temas (claro y oscuro). Los tokens de
+// Color.kt ya cambian solos con el tema; estos cuatro cubren los casos donde
+// el token directo no alcanza contraste suficiente (Teal/Amber sobre blanco)
+// o donde antes había colores fijos que desaparecían en modo oscuro.
+// ---------------------------------------------------------------------------
+private fun trazo(): Color = TextoPrimario                       // líneas, cables, texto del diagrama
+private fun acento(): Color = if (AppTheme.modoOscuro) Teal else TealDark
+private fun colorObjetivo(): Color = if (AppTheme.modoOscuro) Amber else Color(0xFF8A5A00)
+private fun sobreAcento(): Color = if (AppTheme.modoOscuro) Fondo else Color.White
+
 @Composable
 fun SimulacionContent(
     ejercicio: Ejercicio,
@@ -87,11 +103,11 @@ private fun MarcoSimulacion(
                     onResponder(mapOf("valor" to valorActual), segundos)
                 } else onSiguiente()
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Teal),
+            colors = ButtonDefaults.buttonColors(containerColor = acento()),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
-            Text(if (respondido) "Siguiente →" else "Confirmar", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(if (respondido) "Siguiente →" else "Confirmar", color = sobreAcento(), fontWeight = FontWeight.Bold)
         }
 
         resultado?.let { r ->
@@ -100,7 +116,7 @@ private fun MarcoSimulacion(
                 r.correcta -> "¡Lo lograste! +${r.xpOtorgado} XP ✓"
                 else -> "No llegaste al objetivo — inténtalo de nuevo la próxima vez"
             }
-            Text(texto, color = if (r.correcta) Teal else ErrorRed, fontWeight = FontWeight.Bold)
+            Text(texto, color = if (r.correcta) acento() else ErrorRed, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -114,8 +130,8 @@ private fun MarcoSimulacion(
 private fun ControlContinuo(etiqueta: String, valor: Double, unidad: String, min: Double, max: Double, paso: Double, habilitado: Boolean, onChange: (Double) -> Unit) {
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(etiqueta, style = MaterialTheme.typography.bodySmall, color = Teal, fontWeight = FontWeight.Bold)
-            Text(formatearNumero(valor) + " " + unidad, style = MaterialTheme.typography.bodyMedium, color = Teal, fontWeight = FontWeight.Bold)
+            Text(etiqueta, style = MaterialTheme.typography.bodyMedium, color = acento(), fontWeight = FontWeight.Bold)
+            Text(formatearNumero(valor) + " " + unidad, style = MaterialTheme.typography.titleMedium, color = acento(), fontWeight = FontWeight.Bold)
         }
         Slider(
             value = valor.toFloat(),
@@ -125,7 +141,7 @@ private fun ControlContinuo(etiqueta: String, valor: Double, unidad: String, min
             },
             valueRange = min.toFloat()..max.toFloat(),
             enabled = habilitado,
-            colors = SliderDefaults.colors(thumbColor = Teal, activeTrackColor = Teal, inactiveTrackColor = Borde),
+            colors = SliderDefaults.colors(thumbColor = acento(), activeTrackColor = acento(), inactiveTrackColor = TextoSecundario.copy(alpha = 0.35f)),
         )
     }
 }
@@ -141,8 +157,8 @@ private fun ControlDiscreto(etiqueta: String, valor: Double, unidad: String, opc
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(etiqueta, style = MaterialTheme.typography.bodySmall, color = Teal, fontWeight = FontWeight.Bold)
-            Text(formatearNumero(valor) + " " + unidad, style = MaterialTheme.typography.bodyMedium, color = Teal, fontWeight = FontWeight.Bold)
+            Text(etiqueta, style = MaterialTheme.typography.bodyMedium, color = acento(), fontWeight = FontWeight.Bold)
+            Text(formatearNumero(valor) + " " + unidad, style = MaterialTheme.typography.titleMedium, color = acento(), fontWeight = FontWeight.Bold)
         }
         Slider(
             value = indiceActual.toFloat(),
@@ -150,7 +166,7 @@ private fun ControlDiscreto(etiqueta: String, valor: Double, unidad: String, opc
             valueRange = 0f..opciones.lastIndex.toFloat(),
             steps = (opciones.size - 2).coerceAtLeast(0),
             enabled = habilitado,
-            colors = SliderDefaults.colors(thumbColor = Teal, activeTrackColor = Teal, inactiveTrackColor = Borde),
+            colors = SliderDefaults.colors(thumbColor = acento(), activeTrackColor = acento(), inactiveTrackColor = TextoSecundario.copy(alpha = 0.35f)),
         )
     }
 }
@@ -179,21 +195,21 @@ private fun LeyOhmSimulacion(ejercicio: Ejercicio, vi: com.mathphysics.app.data.
         onResponder = onResponder, onSiguiente = onSiguiente,
         diagrama = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Canvas(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+                Canvas(modifier = Modifier.fillMaxWidth().height(170.dp)) {
                     val w = size.width; val h = size.height
                     dibujarCuadriculaProtoboard()
-                    val top = h * 0.25f; val bottom = h * 0.75f; val left = w * 0.15f; val right = w * 0.85f
+                    val top = h * 0.25f; val bottom = h * 0.75f; val left = w * 0.2f; val right = w * 0.85f
                     drawRoundRect(
-                        color = Color(0xFF1B1C2C),
+                        color = trazo(),
                         topLeft = Offset(left, top),
                         size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(14f, 14f),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4.dp.toPx()),
                     )
                     dibujarBateria(Offset(left, (top + bottom) / 2), vertical = true)
                     dibujarResistencia(Offset(w * 0.4f, top), Offset(w * 0.75f, top), resistencia)
-                    dibujarTextoCentrado("$voltaje V", left - 6, (top + bottom) / 2, ancladoIzquierda = true)
-                    dibujarTextoCentrado("${formatearNumero(resistencia)} Ω", (w * 0.4f + w * 0.75f) / 2, top - 18)
+                    dibujarTextoCentrado("${formatearNumero(voltaje)} V", left - 22.dp.toPx(), (top + bottom) / 2 + 5.dp.toPx(), ancladoIzquierda = true)
+                    dibujarTextoCentrado("${formatearNumero(resistencia)} Ω", (w * 0.4f + w * 0.75f) / 2, top - 22.dp.toPx())
                 }
                 LecturaObjetivo("Corriente actual", "%.3f A".format(corriente), "Objetivo: %.3f A".format(corrienteObjetivo), aciertaObjetivo(corriente, corrienteObjetivo))
             }
@@ -218,17 +234,17 @@ private fun NewtonSimulacion(ejercicio: Ejercicio, vi: com.mathphysics.app.data.
         onResponder = onResponder, onSiguiente = onSiguiente,
         diagrama = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Canvas(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+                Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
                     val w = size.width; val h = size.height
                     val suelo = h * 0.78f
                     dibujarLinea(Offset(w * 0.1f, suelo), Offset(w * 0.9f, suelo))
                     val bloqueIzq = w * 0.5f; val bloqueAncho = w * 0.22f; val bloqueAlto = h * 0.32f
-                    drawRect(color = Color(0xFF1B1C2C), topLeft = Offset(bloqueIzq, suelo - bloqueAlto), size = androidx.compose.ui.geometry.Size(bloqueAncho, bloqueAlto))
+                    drawRect(color = TealDark, topLeft = Offset(bloqueIzq, suelo - bloqueAlto), size = androidx.compose.ui.geometry.Size(bloqueAncho, bloqueAlto))
                     dibujarTextoCentradoEn("${formatearNumero(masa)} kg", bloqueIzq + bloqueAncho / 2, suelo - bloqueAlto / 2, blanco = true)
                     val flechaFin = bloqueIzq - 10
                     val flechaInicio = (flechaFin - (w * 0.28f)).coerceAtLeast(w * 0.08f)
                     dibujarFlecha(Offset(flechaInicio, suelo - bloqueAlto / 2), Offset(flechaFin, suelo - bloqueAlto / 2))
-                    dibujarTextoCentrado("${formatearNumero(fuerza)} N", (flechaInicio + flechaFin) / 2, suelo - bloqueAlto - 14)
+                    dibujarTextoCentrado("${formatearNumero(fuerza)} N", (flechaInicio + flechaFin) / 2, suelo - bloqueAlto - 14.dp.toPx())
                 }
                 LecturaObjetivo("Aceleración actual", "%.3f m/s²".format(aceleracion), "Objetivo: %.3f m/s²".format(aceleracionObjetivo), aciertaObjetivo(aceleracion, aceleracionObjetivo))
             }
@@ -254,7 +270,7 @@ private fun EnergiaSimulacion(ejercicio: Ejercicio, vi: com.mathphysics.app.data
         onResponder = onResponder, onSiguiente = onSiguiente,
         diagrama = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Canvas(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+                Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
                     val w = size.width; val h = size.height
                     val suelo = h * 0.85f; val techo = h * 0.1f
                     dibujarLinea(Offset(w * 0.15f, suelo), Offset(w * 0.85f, suelo))
@@ -262,9 +278,10 @@ private fun EnergiaSimulacion(ejercicio: Ejercicio, vi: com.mathphysics.app.data
                     val fraccion = (altura / alturaMax).coerceIn(0.05, 1.0)
                     val yObjeto = suelo - (suelo - techo) * fraccion.toFloat()
                     dibujarLineaPunteada(Offset(w * 0.3f, suelo), Offset(w * 0.3f, yObjeto))
-                    drawCircle(color = Color(0xFFF3B940), radius = 14f, center = Offset(w * 0.3f, yObjeto))
-                    dibujarTextoCentrado("${formatearNumero(altura)} m", w * 0.3f + 34, (suelo + yObjeto) / 2)
-                    dibujarTextoCentrado("${formatearNumero(masa)} kg", w * 0.3f, yObjeto - 22)
+                    drawCircle(color = Amber, radius = 10.dp.toPx(), center = Offset(w * 0.3f, yObjeto))
+                    drawCircle(color = trazo(), radius = 10.dp.toPx(), center = Offset(w * 0.3f, yObjeto), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+                    dibujarTextoCentrado("${formatearNumero(altura)} m", w * 0.3f + 44.dp.toPx(), (suelo + yObjeto) / 2)
+                    dibujarTextoCentrado("${formatearNumero(masa)} kg", w * 0.3f, yObjeto - 18.dp.toPx())
                 }
                 LecturaObjetivo("Energía potencial actual", "%.1f J".format(energia), "Objetivo: %.1f J".format(energiaObjetivo), aciertaObjetivo(energia, energiaObjetivo))
             }
@@ -289,7 +306,7 @@ private fun PitagorasSimulacion(ejercicio: Ejercicio, vi: com.mathphysics.app.da
         onResponder = onResponder, onSiguiente = onSiguiente,
         diagrama = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Canvas(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+                Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
                     val w = size.width; val h = size.height
                     val base = Offset(w * 0.2f, h * 0.8f)
                     val esquina = Offset(w * 0.2f, h * 0.2f)
@@ -297,9 +314,9 @@ private fun PitagorasSimulacion(ejercicio: Ejercicio, vi: com.mathphysics.app.da
                     dibujarLinea(esquina, base)
                     dibujarLinea(base, punta)
                     dibujarLinea(punta, esquina)
-                    dibujarTextoCentrado("${formatearNumero(catetoA)} cm", esquina.x - 26, (esquina.y + base.y) / 2)
-                    dibujarTextoCentrado("${formatearNumero(catetoB)} cm", (base.x + punta.x) / 2, base.y + 20)
-                    dibujarTextoCentrado("? cm", (esquina.x + punta.x) / 2 + 10, (esquina.y + punta.y) / 2 - 12)
+                    dibujarTextoCentrado("${formatearNumero(catetoA)} cm", esquina.x - 34.dp.toPx(), (esquina.y + base.y) / 2)
+                    dibujarTextoCentrado("${formatearNumero(catetoB)} cm", (base.x + punta.x) / 2, base.y + 22.dp.toPx())
+                    dibujarTextoCentrado("? cm", (esquina.x + punta.x) / 2 + 10, (esquina.y + punta.y) / 2 - 12.dp.toPx())
                 }
                 LecturaObjetivo("Hipotenusa actual", "%.2f cm".format(hipotenusa), "Objetivo: %.2f cm".format(hipotenusaObjetivo), aciertaObjetivo(hipotenusa, hipotenusaObjetivo))
             }
@@ -324,16 +341,18 @@ private fun VoltajeSerieSimulacion(ejercicio: Ejercicio, vi: com.mathphysics.app
         onResponder = onResponder, onSiguiente = onSiguiente,
         diagrama = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Canvas(modifier = Modifier.fillMaxWidth().height(130.dp)) {
+                Canvas(modifier = Modifier.fillMaxWidth().height(140.dp)) {
                     dibujarCuadriculaProtoboard()
                     val todas = fijas + ultima
                     val n = todas.size
                     val espacio = size.width / (n + 1)
+                    val salida = BATERIA_LARGO_DP.dp.toPx() / 2 + BATERIA_TERMINAL_DP.dp.toPx() // hasta la punta del terminal +
+                    val entrada = BATERIA_LARGO_DP.dp.toPx() / 2 + 3.dp.toPx()                  // hasta la placa plana −
                     todas.forEachIndexed { i, v ->
                         val x = espacio * (i + 1)
-                        dibujarBateria(Offset(x, size.height * 0.45f), vertical = false)
-                        dibujarTextoCentrado("$v V", x, size.height * 0.8f)
-                        if (i < n - 1) dibujarLinea(Offset(x + 22, size.height * 0.45f), Offset(x + espacio - 22, size.height * 0.45f))
+                        dibujarBateria(Offset(x, size.height * 0.42f), vertical = false)
+                        dibujarTextoCentrado("${formatearNumero(v)} V", x, size.height * 0.85f)
+                        if (i < n - 1) dibujarLinea(Offset(x + salida, size.height * 0.42f), Offset(x + espacio - entrada, size.height * 0.42f))
                     }
                 }
                 LecturaObjetivo("Voltaje total actual", "%.1f V".format(total), "Objetivo: %.1f V".format(objetivoTotal), aciertaObjetivo(total, objetivoTotal))
@@ -359,16 +378,17 @@ private fun ResistenciasSerieSimulacion(ejercicio: Ejercicio, vi: com.mathphysic
         onResponder = onResponder, onSiguiente = onSiguiente,
         diagrama = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Canvas(modifier = Modifier.fillMaxWidth().height(130.dp)) {
+                Canvas(modifier = Modifier.fillMaxWidth().height(140.dp)) {
                     dibujarCuadriculaProtoboard()
                     val todas = fijas + ultima
                     val n = todas.size
                     val espacio = size.width / (n + 1)
+                    val pata = 34.dp.toPx() // todas las resistencias miden lo mismo; solo cambian sus bandas
                     todas.forEachIndexed { i, v ->
                         val x = espacio * (i + 1)
-                        dibujarResistencia(Offset(x - 30, size.height * 0.45f), Offset(x + 30, size.height * 0.45f), v)
-                        dibujarTextoCentrado("${formatearNumero(v)} Ω", x, size.height * 0.8f)
-                        if (i < n - 1) dibujarLinea(Offset(x + 30, size.height * 0.45f), Offset(x + espacio - 30, size.height * 0.45f))
+                        dibujarResistencia(Offset(x - pata, size.height * 0.42f), Offset(x + pata, size.height * 0.42f), v)
+                        dibujarTextoCentrado("${formatearNumero(v)} Ω", x, size.height * 0.85f)
+                        if (i < n - 1) dibujarLinea(Offset(x + pata, size.height * 0.42f), Offset(x + espacio - pata, size.height * 0.42f))
                     }
                 }
                 LecturaObjetivo("Resistencia total actual", "%.0f Ω".format(total), "Objetivo: %.0f Ω".format(objetivoTotal), aciertaObjetivo(total, objetivoTotal))
@@ -388,89 +408,130 @@ private fun LecturaObjetivo(etiqueta: String, valorActual: String, objetivo: Str
     Spacer(Modifier.height(10.dp))
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = if (cerca) TealLight else Fondo,
-        border = BorderStroke(1.dp, if (cerca) Teal else Borde),
+        color = if (cerca) TealLight else Superficie,
+        border = BorderStroke(if (cerca) 2.dp else 1.dp, if (cerca) acento() else TextoSecundario.copy(alpha = 0.5f)),
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(etiqueta, style = MaterialTheme.typography.bodySmall, color = TextoSecundario)
-            Text(valorActual, style = MaterialTheme.typography.titleMedium, color = if (cerca) Teal else TextoPrimario, fontWeight = FontWeight.Bold)
-            Text(objetivo, style = MaterialTheme.typography.bodySmall, color = Amber, fontWeight = FontWeight.Bold)
+            Text(etiqueta, style = MaterialTheme.typography.bodyMedium, color = TextoSecundario)
+            Text(valorActual, style = MaterialTheme.typography.titleMedium, color = if (cerca) acento() else TextoPrimario, fontWeight = FontWeight.Bold)
+            Text(objetivo, style = MaterialTheme.typography.bodyMedium, color = colorObjetivo(), fontWeight = FontWeight.Bold)
         }
     }
 }
 
 // ---------------------------------------------------------------------------
-// Primitivas de dibujo reutilizadas entre los 6 diagramas.
+// Primitivas de dibujo reutilizadas entre los 6 diagramas. Todo en dp para que
+// se vea igual de nítido en cualquier densidad de pantalla, y con colores que
+// salen del tema (trazo(), TealDark…) para tener contraste en claro y oscuro.
 // ---------------------------------------------------------------------------
+private const val BATERIA_LARGO_DP = 40f
+private const val BATERIA_ANCHO_DP = 26f
+private const val BATERIA_TERMINAL_DP = 6f
+
 private fun DrawScope.dibujarLinea(a: Offset, b: Offset) {
-    drawLine(color = Color(0xFF1B1C2C), start = a, end = b, strokeWidth = 4f)
+    drawLine(color = trazo(), start = a, end = b, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
 }
 
 private fun DrawScope.dibujarLineaPunteada(a: Offset, b: Offset) {
     drawLine(
-        color = Color(0xFF7C7E8C), start = a, end = b, strokeWidth = 2f,
+        color = TextoSecundario, start = a, end = b, strokeWidth = 2.dp.toPx(),
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)),
     )
 }
 
 private fun DrawScope.dibujarFlecha(inicio: Offset, fin: Offset) {
-    drawLine(color = Color(0xFFF3B940), start = inicio, end = fin, strokeWidth = 6f)
+    val color = if (AppTheme.modoOscuro) Amber else Color(0xFFC77700)
+    val grosor = 4.dp.toPx()
+    drawLine(color = color, start = inicio, end = fin, strokeWidth = grosor, cap = StrokeCap.Round)
     val angulo = Math.atan2((fin.y - inicio.y).toDouble(), (fin.x - inicio.x).toDouble())
-    val largoPunta = 16f
-    val p1 = Offset(fin.x - largoPunta * kotlin.math.cos(angulo - 0.4).toFloat(), fin.y - largoPunta * kotlin.math.sin(angulo - 0.4).toFloat())
-    val p2 = Offset(fin.x - largoPunta * kotlin.math.cos(angulo + 0.4).toFloat(), fin.y - largoPunta * kotlin.math.sin(angulo + 0.4).toFloat())
+    val largoPunta = 14.dp.toPx()
+    val p1 = Offset(fin.x - largoPunta * kotlin.math.cos(angulo - 0.45).toFloat(), fin.y - largoPunta * kotlin.math.sin(angulo - 0.45).toFloat())
+    val p2 = Offset(fin.x - largoPunta * kotlin.math.cos(angulo + 0.45).toFloat(), fin.y - largoPunta * kotlin.math.sin(angulo + 0.45).toFloat())
     val path = Path().apply { moveTo(fin.x, fin.y); lineTo(p1.x, p1.y); moveTo(fin.x, fin.y); lineTo(p2.x, p2.y) }
-    drawPath(path, color = Color(0xFFF3B940), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 6f))
+    drawPath(path, color = color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = grosor, cap = StrokeCap.Round))
 }
 
 // Fondo tipo protoboard — una cuadrícula tenue de puntos, como Tinkercad.
 private fun DrawScope.dibujarCuadriculaProtoboard() {
-    val espacio = 22f
+    val espacio = 16.dp.toPx()
+    val radio = 1.1.dp.toPx()
+    val color = TextoSecundario.copy(alpha = 0.3f)
     var y = espacio
     while (y < size.height) {
         var x = espacio
         while (x < size.width) {
-            drawCircle(color = Color(0xFFD3D1C9).copy(alpha = 0.4f), radius = 1.6f, center = Offset(x, y))
+            drawCircle(color = color, radius = radio, center = Offset(x, y))
             x += espacio
         }
         y += espacio
     }
 }
 
-// Batería con forma física (cuerpo + terminal dorado), no el símbolo
-// esquemático de 2 líneas — más parecido a un componente real de Tinkercad.
+// Pila tipo AA con relieve: cuerpo con degradado, franja ámbar, terminal
+// positivo dorado y placa negativa plana, signos +/−, y sombra. Se dibuja
+// horizontal (+ a la derecha) y, para el circuito de Ohm, se gira 90° (+ arriba).
 private fun DrawScope.dibujarBateria(centro: Offset, vertical: Boolean) {
-    val colorCuerpo = Color(0xFF3A3D46)
-    val colorTerminal = Color(0xFFC9A227)
-    val cuerpoLargo = 46f
-    val cuerpoAncho = 24f
-    if (vertical) {
+    rotate(degrees = if (vertical) -90f else 0f, pivot = centro) {
+        val largo = BATERIA_LARGO_DP.dp.toPx()
+        val ancho = BATERIA_ANCHO_DP.dp.toPx()
+        val terminal = BATERIA_TERMINAL_DP.dp.toPx()
+        val radio = 6.dp.toPx()
+        val izq = centro.x - largo / 2
+        val arriba = centro.y - ancho / 2
+        val tam = androidx.compose.ui.geometry.Size(largo, ancho)
+        val esquina = androidx.compose.ui.geometry.CornerRadius(radio, radio)
+
+        // sombra
+        drawRoundRect(color = Color.Black.copy(alpha = 0.22f), topLeft = Offset(izq, arriba + 2.dp.toPx()), size = tam, cornerRadius = esquina)
+
+        // placa negativa (extremo izquierdo, plano)
         drawRoundRect(
-            color = colorCuerpo,
-            topLeft = Offset(centro.x - cuerpoAncho / 2, centro.y - cuerpoLargo / 2),
-            size = androidx.compose.ui.geometry.Size(cuerpoAncho, cuerpoLargo),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
+            brush = Brush.verticalGradient(listOf(Color(0xFFB8BCC4), Color(0xFF6E727A), Color(0xFFB8BCC4)), startY = arriba, endY = arriba + ancho),
+            topLeft = Offset(izq - 3.dp.toPx(), centro.y - ancho * 0.3f),
+            size = androidx.compose.ui.geometry.Size(5.dp.toPx(), ancho * 0.6f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx()),
         )
+
+        // terminal positivo (extremo derecho, dorado)
         drawRoundRect(
-            color = colorTerminal,
-            topLeft = Offset(centro.x - cuerpoAncho * 0.25f, centro.y - cuerpoLargo / 2 - 9f),
-            size = androidx.compose.ui.geometry.Size(cuerpoAncho * 0.5f, 11f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f),
+            brush = Brush.verticalGradient(listOf(Color(0xFFF2D675), Color(0xFFB8901E), Color(0xFFF2D675)), startY = arriba, endY = arriba + ancho),
+            topLeft = Offset(izq + largo - 2.dp.toPx(), centro.y - ancho * 0.22f),
+            size = androidx.compose.ui.geometry.Size(terminal + 2.dp.toPx(), ancho * 0.44f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx()),
         )
-        dibujarTextoCentradoEn("+", centro.x, centro.y - cuerpoLargo / 2 - 14f, blanco = false)
-    } else {
+
+        // cuerpo con degradado vertical (efecto cilíndrico)
         drawRoundRect(
-            color = colorCuerpo,
-            topLeft = Offset(centro.x - cuerpoLargo / 2, centro.y - cuerpoAncho / 2),
-            size = androidx.compose.ui.geometry.Size(cuerpoLargo, cuerpoAncho),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
+            brush = Brush.verticalGradient(
+                listOf(Color(0xFF6B7080), Color(0xFF2B2E38), Color(0xFF1C1E26), Color(0xFF3A3E4A)),
+                startY = arriba, endY = arriba + ancho,
+            ),
+            topLeft = Offset(izq, arriba), size = tam, cornerRadius = esquina,
         )
+
+        // franja ámbar del lado positivo
+        drawRect(
+            color = Color(0xFFF3B940),
+            topLeft = Offset(izq + largo * 0.58f, arriba + 2.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(largo * 0.14f, ancho - 4.dp.toPx()),
+        )
+
+        // brillo superior
         drawRoundRect(
-            color = colorTerminal,
-            topLeft = Offset(centro.x + cuerpoLargo / 2 - 1f, centro.y - cuerpoAncho * 0.25f),
-            size = androidx.compose.ui.geometry.Size(9f, cuerpoAncho * 0.5f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f),
+            color = Color.White.copy(alpha = 0.28f),
+            topLeft = Offset(izq + 4.dp.toPx(), arriba + 2.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(largo - 8.dp.toPx(), 3.dp.toPx()),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx()),
         )
+
+        // signos: + (derecha) y − (izquierda)
+        val signo = 2.dp.toPx()
+        val mitad = 4.dp.toPx()
+        val xMas = izq + largo * 0.86f - 2.dp.toPx()
+        drawLine(Color.White, Offset(xMas - mitad, centro.y), Offset(xMas + mitad, centro.y), strokeWidth = signo, cap = StrokeCap.Round)
+        drawLine(Color.White, Offset(xMas, centro.y - mitad), Offset(xMas, centro.y + mitad), strokeWidth = signo, cap = StrokeCap.Round)
+        val xMenos = izq + largo * 0.2f
+        drawLine(Color.White, Offset(xMenos - mitad, centro.y), Offset(xMenos + mitad, centro.y), strokeWidth = signo, cap = StrokeCap.Round)
     }
 }
 
@@ -491,45 +552,65 @@ private fun digitosBandas(valorOhms: Double): Triple<Int, Int, Int> {
     return Triple(v / 10, v % 10, mult)
 }
 
+// TAMAÑO FIJO: todas las resistencias miden igual (50 × 20 dp) sin importar el
+// valor ni cuánto espacio haya entre sus extremos; `a` y `b` solo indican hasta
+// dónde llegan las patas. Lo único que cambia entre una y otra son las bandas.
 private fun DrawScope.dibujarResistencia(a: Offset, b: Offset, valorOhms: Double) {
     val centro = Offset((a.x + b.x) / 2, (a.y + b.y) / 2)
-    val largoTotal = kotlin.math.hypot((b.x - a.x).toDouble(), (b.y - a.y).toDouble()).toFloat()
-    val anchoCuerpo = largoTotal * 0.62f
-    val altoCuerpo = 22f
+    val anchoCuerpo = 50.dp.toPx()
+    val altoCuerpo = 20.dp.toPx()
+    val izq = centro.x - anchoCuerpo / 2
+    val arriba = centro.y - altoCuerpo / 2
 
-    // patas (leads) que conectan el cuerpo con el resto del circuito
-    drawLine(Color(0xFF9AA0A6), a, Offset(centro.x - anchoCuerpo / 2, centro.y), strokeWidth = 3f)
-    drawLine(Color(0xFF9AA0A6), Offset(centro.x + anchoCuerpo / 2, centro.y), b, strokeWidth = 3f)
+    // patas metálicas
+    val pata = Color(0xFF9AA0A6)
+    val grosorPata = 2.5.dp.toPx()
+    drawLine(pata, a, Offset(izq + 4.dp.toPx(), centro.y), strokeWidth = grosorPata, cap = StrokeCap.Round)
+    drawLine(pata, Offset(izq + anchoCuerpo - 4.dp.toPx(), centro.y), b, strokeWidth = grosorPata, cap = StrokeCap.Round)
 
-    // cuerpo color hueso, como una resistencia real
+    // sombra + cuerpo color hueso con degradado (relieve cilíndrico) y borde fino
+    val esquina = androidx.compose.ui.geometry.CornerRadius(altoCuerpo / 2.2f, altoCuerpo / 2.2f)
+    val tam = androidx.compose.ui.geometry.Size(anchoCuerpo, altoCuerpo)
+    drawRoundRect(color = Color.Black.copy(alpha = 0.2f), topLeft = Offset(izq, arriba + 2.dp.toPx()), size = tam, cornerRadius = esquina)
     drawRoundRect(
-        color = Color(0xFFE8D5A8),
-        topLeft = Offset(centro.x - anchoCuerpo / 2, centro.y - altoCuerpo / 2),
-        size = androidx.compose.ui.geometry.Size(anchoCuerpo, altoCuerpo),
-        cornerRadius = androidx.compose.ui.geometry.CornerRadius(altoCuerpo / 2.2f, altoCuerpo / 2.2f),
+        brush = Brush.verticalGradient(listOf(Color(0xFFF6E7BF), Color(0xFFE0C98F), Color(0xFFBFA56A)), startY = arriba, endY = arriba + altoCuerpo),
+        topLeft = Offset(izq, arriba), size = tam, cornerRadius = esquina,
+    )
+    drawRoundRect(
+        color = Color(0xFF7A6A3A), topLeft = Offset(izq, arriba), size = tam, cornerRadius = esquina,
+        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()),
     )
 
-    // 3 bandas de color reales (dos cifras + multiplicador)
+    // 3 bandas reales (dos cifras + multiplicador)
     val (d1, d2, mult) = digitosBandas(valorOhms)
     val colores = listOf(COLOR_BANDA[d1]!!, COLOR_BANDA[d2]!!, COLOR_BANDA[mult] ?: Color(0xFF1B1C2C))
-    val anchoBanda = anchoCuerpo * 0.11f
+    val anchoBanda = anchoCuerpo * 0.1f
     val espacioBandas = anchoCuerpo * 0.17f
-    val inicioX = centro.x - anchoCuerpo / 2 + anchoCuerpo * 0.24f
+    val inicioX = izq + anchoCuerpo * 0.24f
     colores.forEachIndexed { i, c ->
         drawRect(
             color = c,
-            topLeft = Offset(inicioX + i * espacioBandas, centro.y - altoCuerpo / 2 + 1f),
-            size = androidx.compose.ui.geometry.Size(anchoBanda, altoCuerpo - 2f),
+            topLeft = Offset(inicioX + i * espacioBandas, arriba + 1.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(anchoBanda, altoCuerpo - 2.dp.toPx()),
         )
     }
+    // brillo
+    drawRoundRect(
+        color = Color.White.copy(alpha = 0.3f),
+        topLeft = Offset(izq + 5.dp.toPx(), arriba + 2.dp.toPx()),
+        size = androidx.compose.ui.geometry.Size(anchoCuerpo - 10.dp.toPx(), 2.dp.toPx()),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx(), 1.dp.toPx()),
+    )
 }
 
+// Texto del diagrama: más grande (15 sp), en negrita y con el color del tema.
 private fun DrawScope.dibujarTextoCentrado(texto: String, x: Float, y: Float, ancladoIzquierda: Boolean = false) {
     drawContext.canvas.nativeCanvas.drawText(
         texto, x, y,
         android.graphics.Paint().apply {
-            color = android.graphics.Color.parseColor("#1B1C2C")
-            textSize = 30f
+            color = trazo().toArgb()
+            textSize = 15.sp.toPx()
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             textAlign = if (ancladoIzquierda) android.graphics.Paint.Align.RIGHT else android.graphics.Paint.Align.CENTER
             isAntiAlias = true
         },
@@ -540,8 +621,9 @@ private fun DrawScope.dibujarTextoCentradoEn(texto: String, x: Float, y: Float, 
     drawContext.canvas.nativeCanvas.drawText(
         texto, x, y,
         android.graphics.Paint().apply {
-            color = if (blanco) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#1B1C2C")
-            textSize = 26f
+            color = if (blanco) android.graphics.Color.WHITE else trazo().toArgb()
+            textSize = 14.sp.toPx()
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             textAlign = android.graphics.Paint.Align.CENTER
             isAntiAlias = true
         },

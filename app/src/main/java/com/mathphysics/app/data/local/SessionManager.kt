@@ -2,6 +2,8 @@ package com.mathphysics.app.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Guarda la sesión del usuario (token JWT + sus datos) en SharedPreferences
@@ -37,11 +39,28 @@ object SessionManager {
     val nombreUsuario: String
         get() = prefs.getString(KEY_NOMBRE_USUARIO, "") ?: ""
 
-    // De momento no se usa para cambiar de pantalla — un admin entra como
-    // cualquier estudiante mientras no exista el panel de administrador —
-    // pero se guarda desde ya para cuando ese panel se construya.
+    // "admin" entra al Panel de Administrador; cualquier otro rol entra como estudiante.
     val rol: String
         get() = prefs.getString(KEY_ROL, "estudiante") ?: "estudiante"
+
+    val esAdmin: Boolean
+        get() = rol == "admin"
+
+    // El servidor invalida la sesión (p. ej. el admin pasó 30 min inactivo,
+    // RQNF35, o inició sesión en otro lado y cerró esta). El interceptor de
+    // Retrofit llama a marcarExpirada() y el NavGraph, que observa este flujo,
+    // regresa al Login.
+    private val _sesionExpirada = MutableStateFlow(false)
+    val sesionExpirada: StateFlow<Boolean> = _sesionExpirada
+
+    fun marcarExpirada() {
+        prefs.edit().clear().apply()
+        _sesionExpirada.value = true
+    }
+
+    fun reconocerExpiracion() {
+        _sesionExpirada.value = false
+    }
 
     fun haySesionActiva(): Boolean = token != null && usuarioId != -1
 

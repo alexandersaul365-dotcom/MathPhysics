@@ -3,6 +3,10 @@ package com.mathphysics.app.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import com.mathphysics.app.data.remote.RetrofitClient
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -126,6 +130,21 @@ private fun LeccionContenido(leccion: Leccion, onIrAEjercicios: () -> Unit, padd
                     FormulaLatex(leccion.formula, modifier = Modifier.padding(horizontal = 8.dp))
                 }
                 Spacer(Modifier.height(20.dp))
+            }
+
+            // Imágenes subidas por el administrador (RQF34)
+            val imagenes = leccion.imagenes.orEmpty()
+            if (imagenes.isNotEmpty()) {
+                imagenes.forEach { ruta ->
+                    AsyncImage(
+                        model = RetrofitClient.BASE_URL.trimEnd('/') + ruta,
+                        contentDescription = "Imagen de la lección",
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+                Spacer(Modifier.height(8.dp))
             }
 
             if (secciones.isNotEmpty()) {

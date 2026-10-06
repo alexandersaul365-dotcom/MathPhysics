@@ -20,11 +20,16 @@ import com.mathphysics.app.data.model.SesionResultado
 import com.mathphysics.app.data.model.Subtema
 import com.mathphysics.app.data.model.SubtemaConEjercicios
 import com.mathphysics.app.data.model.Tema
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 interface ApiService {
 
@@ -39,6 +44,33 @@ interface ApiService {
     // el interceptor de RetrofitClient — no necesita parámetros.
     @POST("api/auth/logout")
     suspend fun cerrarSesion(): MensajeResultado
+
+    // --- Panel de administrador (RQF25-36) ---
+    // Endpoints genéricos sobre /api/admin/{ruta}: las respuestas del panel
+    // se leen como JSON dinámico (JsonElement), así una sola definición
+    // sirve para preguntas, ejercicios, contenido, bitácora y reportes.
+    @GET("api/admin/{ruta}")
+    suspend fun adminGet(
+        @Path("ruta", encoded = true) ruta: String,
+        @QueryMap filtros: Map<String, String>,
+    ): JsonElement
+
+    @POST("api/admin/{ruta}")
+    suspend fun adminPost(
+        @Path("ruta", encoded = true) ruta: String,
+        @Body cuerpo: JsonObject,
+    ): JsonElement
+
+    @PUT("api/admin/{ruta}")
+    suspend fun adminPut(
+        @Path("ruta", encoded = true) ruta: String,
+        @Body cuerpo: JsonObject,
+    ): JsonElement
+
+    @DELETE("api/admin/{ruta}")
+    suspend fun adminDelete(
+        @Path("ruta", encoded = true) ruta: String,
+    ): JsonElement
 
     // --- Contenido educativo ---
     @GET("api/contenido/materias")

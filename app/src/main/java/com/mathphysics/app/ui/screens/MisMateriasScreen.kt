@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.LightMode
@@ -42,6 +43,8 @@ fun MisMateriasScreen(
     onMateriaClick: (Materia) -> Unit,
     onVerRacha: () -> Unit = {},
     onSesionCerrada: () -> Unit = {},
+    // Solo para administradores que entran a "ver como estudiante": vuelve a su panel.
+    onVolverAPanel: (() -> Unit)? = null,
     viewModel: MisMateriasViewModel = viewModel(),
 ) {
     val estado by viewModel.estado.collectAsState()
@@ -72,6 +75,11 @@ fun MisMateriasScreen(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onVolverAPanel != null) {
+                        IconButton(onClick = onVolverAPanel) {
+                            Icon(Icons.Default.AdminPanelSettings, contentDescription = "Volver al panel de administrador", tint = Teal, modifier = Modifier.size(20.dp))
+                        }
+                    }
                     IconButton(onClick = { AppTheme.modoOscuro = !AppTheme.modoOscuro }) {
                         Icon(
                             if (AppTheme.modoOscuro) Icons.Default.LightMode else Icons.Default.DarkMode,
