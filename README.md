@@ -621,3 +621,31 @@ duplicando las barras invertidas (4 en vez de 2) sin que el validador lo
 notara al inicio, porque `\\` en LaTeX es "salto de línea" válido — solo
 se veía mal, no daba error de sintaxis. Lo detecté verificando byte por
 byte antes de aplicar el cambio, y lo reescribí evitando heredocs.
+
+---
+
+## Panel de administrador (RQF25-36) y rutas protegidas
+
+**Migración (una sola vez, en phpMyAdmin):** `src/migrations/panel_admin.sql` agrega `ejercicios.fecha_publicacion`.
+
+**Todas las rutas de estudiante** ahora exigen `Authorization: Bearer <token>`; el servidor toma la identidad del JWT (si el `usuario_id` de la URL no coincide con el del token → 403).
+
+**API `/api/admin/*`** (exige sesión + rol admin, RQNF34; sesión admin expira a los 30 min de inactividad, RQNF35):
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| GET | `/perfil`, `/catalogo` | Datos del admin y permisos; árbol materia→tema→subtema |
+| GET/POST | `/preguntas-teoricas` | Listar / crear (borrador) |
+| GET/PUT/DELETE | `/preguntas-teoricas/:id` | Ver / editar / baja lógica |
+| POST | `/preguntas-teoricas/:id/publicar` | Publica y registra `fecha_publicacion` |
+| GET/POST | `/ejercicios` | Listar / crear (`opcion_multiple`, `numerico`, `variable`, `simulacion`) |
+| GET/PUT/DELETE | `/ejercicios/:id` | Ver / editar / baja lógica (paso a paso: no editable) |
+| POST | `/ejercicios/paso-a-paso/previsualizar` | `{ecuacion}` → 3-6 pasos generados (422 si supera 6) |
+| POST | `/ejercicios/paso-a-paso` | `{subtema_id, ecuacion}` → confirma; el servidor regenera los pasos y guarda borrador |
+| POST | `/ejercicios/:id/publicar` | Publica |
+| GET/POST | `/contenido` | Versiones de contenido teórico por subtema (version incremental, borrador, imágenes base64 JPG/PNG ≤2 MB, máx. 3) |
+| POST/DELETE | `/contenido/:id/publicar`, `/contenido/:id` | Publicar / baja lógica |
+| GET | `/bitacora` | Bitácora (usuario, acción, contenido, fecha UTC-6). Se escribe en la misma transacción que la operación (RQNF46) |
+| GET | `/reportes/temas`, `/reportes/estudiantes`, `/reportes/estudiantes/:id` | Reportes con SQL agregado; requieren permiso `ver_reportes` (RQNF48) |
+
+Simulaciones (`valores` por tipo): `ley_ohm {voltaje, resistencia}`, `segunda_ley_newton {masa, fuerza}`, `energia_potencial {masa, altura}`, `pitagoras {cateto_a, cateto_b}`, `voltaje_serie {baterias:[…]}`, `resistencias_serie {resistencias:[…]}`. El resultado esperado se calcula en el servidor.

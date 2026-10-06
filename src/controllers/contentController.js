@@ -124,7 +124,7 @@ async function obtenerLeccionDeSubtema(req, res) {
      JOIN temas t ON t.id = s.tema_id
      JOIN modulos m ON m.id = t.modulo_id
      WHERE ct.subtema_id = ? AND ct.estado = 'publicado' AND ct.activo = TRUE
-     ORDER BY ct.id DESC
+     ORDER BY ct.version DESC, ct.id DESC
      LIMIT 1`,
     [subtemaId]
   );
@@ -152,11 +152,14 @@ async function obtenerLeccionDeSubtema(req, res) {
     });
   }
 
+  const [imagenes] = await pool.query('SELECT url FROM contenido_teorico_imagenes WHERE contenido_id = ? ORDER BY id', [leccion.id]);
+
   return res.status(200).json({
     titulo: leccion.titulo,
     breadcrumb: `${MATERIA_LABELS[leccion.materia]} · ${leccion.moduloNombre}`,
     definicion: leccion.definicion,
     formula: leccion.formula,
+    imagenes: imagenes.map((i) => i.url),
     secciones: seccionesConPasos,
     subtemaId: leccion.subtema_id,
   });

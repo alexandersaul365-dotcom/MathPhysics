@@ -1,5 +1,4 @@
 const pool = require('../config/db');
-const { validarLatex } = require('../utils/latex');
 const { totalTeoricasPublicadas, contarTeoricasCorrectasSubtema, temaCompleto } = require('../utils/progreso');
 const { evaluarPrimeraRespuesta, evaluarExplorador, evaluarMaestroTema, evaluarVelocista } = require('../utils/insignias');
 
@@ -8,66 +7,6 @@ const XP_PREGUNTA_TEORICA = 15;
 // teóricas al 100%, no el pool de ejercicios generados (ver progreso.js).
 const XP_BONO_SUBTEMA = 50;
 const XP_BONO_TEMA = 150;
-
-// Crea una pregunta teórica (RQF26), con las validaciones de RQNF36/36c.
-// No hay panel de administrador todavía, así que por ahora esto se usa vía
-// SQL directo para la mayoría del contenido — pero este endpoint existe y
-// aplica las reglas reales, listo para cuando se construya el panel.
-async function crear(req, res) {
-  const {
-    subtema_id: subtemaId,
-    titulo,
-    cuerpo,
-    formula_latex: formulaLatex,
-    opciones,
-    admin_id: adminId,
-  } = req.body;
-
-  // RQNF36: título 5-150 caracteres, cuerpo 20-5000 caracteres, ambos obligatorios.
-  if (!titulo || titulo.length < 5 || titulo.length > 150) {
-    return res.status(400).json({ error: 'El título debe tener entre 5 y 150 caracteres' });
-  }
-  if (!cuerpo || cuerpo.length < 20 || cuerpo.length > 5000) {
-    return res.status(400).json({ error: 'El cuerpo debe tener entre 20 y 5000 caracteres' });
-  }
-  if (!subtemaId) {
-    return res.status(400).json({ error: 'El subtema es obligatorio' });
-  }
-  const [[subtema]] = await pool.query('SELECT id FROM subtemas WHERE id = ?', [subtemaId]);
-  if (!subtema) {
-    return res.status(400).json({ error: 'El subtema indicado no existe' });
-  }
-
-  // RQNF36c: si se incluye fórmula LaTeX, debe compilar con KaTeX o se rechaza.
-  try {
-    validarLatex(formulaLatex);
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
-
-  if (!Array.isArray(opciones) || opciones.length < 2) {
-    return res.status(400).json({ error: 'Se requieren al menos 2 opciones de respuesta' });
-  }
-  if (!opciones.some((o) => o.es_correcta)) {
-    return res.status(400).json({ error: 'Debe marcarse una opción como correcta' });
-  }
-
-  const [resultado] = await pool.query(
-    `INSERT INTO preguntas_teoricas (subtema_id, titulo, cuerpo, formula_latex, estado, creado_por, fecha_publicacion)
-     VALUES (?, ?, ?, ?, 'publicado', ?, NOW())`,
-    [subtemaId, titulo, cuerpo, formulaLatex || null, adminId]
-  );
-  const preguntaId = resultado.insertId;
-
-  for (const opcion of opciones) {
-    await pool.query(
-      'INSERT INTO pregunta_teorica_opciones (pregunta_id, texto, es_correcta) VALUES (?, ?, ?)',
-      [preguntaId, opcion.texto, !!opcion.es_correcta]
-    );
-  }
-
-  return res.status(201).json({ id: preguntaId });
-}
 
 // Pantalla "Preguntas Teóricas": las preguntas de comprensión de un subtema
 // específico, mostradas justo después de la Lección (RQF26). Distinto del
@@ -261,4 +200,4 @@ async function responder(req, res) {
   });
 }
 
-module.exports = { crear, listarPorSubtema, responder };
+module.exports = { listarPorSubtema, responder };

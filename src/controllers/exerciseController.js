@@ -182,20 +182,21 @@ async function listarEjerciciosPorSubtema(req, res) {
   const { subtemaId } = req.params;
   const subtemaIdNum = Number(subtemaId);
 
-  if (REGISTRO_GENERADORES[subtemaIdNum]) {
-    const lote = await generarLoteEjercicios(subtemaIdNum, 10);
-    return res.status(200).json(lote || []);
-  }
-
+  // Ejercicios FIJOS publicados por el administrador (RQF27-33): solo los
+  // 'publicado' y activos son visibles para el estudiante (RQNF43).
   const [ejercicios] = await pool.query(
     `SELECT id, tipo, enunciado, xp_otorgado
      FROM ejercicios
-     WHERE subtema_id = ? AND estado = 'publicado' AND activo = TRUE
+     WHERE subtema_id = ? AND es_generado = FALSE AND estado = 'publicado' AND activo = TRUE
      ORDER BY id`,
     [subtemaId]
   );
 
   const resultado = [];
+  if (REGISTRO_GENERADORES[subtemaIdNum]) {
+    const lote = await generarLoteEjercicios(subtemaIdNum, 10);
+    resultado.push(...(lote || []));
+  }
   for (const ej of ejercicios) {
     resultado.push(await construirDetalleEjercicio(ej));
   }
