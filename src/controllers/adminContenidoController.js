@@ -282,6 +282,44 @@ function construirSimulacion(tipo, v) {
         resultado: rs[rs.length - 1],
       };
     }
+    case 'tercera_ley_newton': {
+      const fuerza = numeroEnRango(v.fuerza, 'La fuerza de acción', 0.5, 1000, { multiploDe: 0.5 });
+      const masaA = numeroEnRango(v.masa_a, 'La masa del bloque A', 1, 100);
+      const masaB = numeroEnRango(v.masa_b, 'La masa del bloque B', 1, 100);
+      return {
+        valores: { fijos: { masa_a: masaA, masa_b: masaB }, incognita: 'fuerza_reaccion', objetivo: { fuerza_accion: fuerza }, rango: { min: 0.5, max: 1000, paso: 0.5 } },
+        resultado: fuerza,
+      };
+    }
+    case 'energia_cinetica': {
+      const masa = numeroEnRango(v.masa, 'La masa', 1, 100);
+      const velocidad = numeroEnRango(v.velocidad, 'La velocidad', 1, 50, { entero: true });
+      return {
+        valores: { fijos: { masa }, incognita: 'velocidad', objetivo: { energia: r(0.5 * masa * velocidad * velocidad, 1) }, rango: { min: 1, max: 50, paso: 1 } },
+        resultado: velocidad,
+      };
+    }
+    case 'transformacion_energia': {
+      const masa = numeroEnRango(v.masa, 'La masa', 1, 100);
+      const alturaInicial = numeroEnRango(v.altura_inicial, 'La altura inicial', 2, 50, { entero: true });
+      const altura = numeroEnRango(v.altura, 'La altura objetivo', 1, alturaInicial - 1, { entero: true });
+      return {
+        valores: { fijos: { masa, g: 9.8, altura_inicial: alturaInicial }, incognita: 'altura', objetivo: { energia_cinetica: r(masa * 9.8 * (alturaInicial - altura), 1) }, rango: { min: 0, max: alturaInicial, paso: 1 } },
+        resultado: altura,
+      };
+    }
+    case 'velocidad_aceleracion': {
+      // RQNF19: aceleración 0.5-10 m/s² (pasos de 0.5), velocidad 1-100 m/s, tiempo 1-60 s.
+      const vInicial = numeroEnRango(v.velocidad_inicial, 'La velocidad inicial', 0, 100, { entero: true });
+      const tiempo = numeroEnRango(v.tiempo, 'El tiempo', 1, 60, { entero: true });
+      const aceleracion = numeroEnRango(v.aceleracion, 'La aceleración', 0.5, 10, { multiploDe: 0.5 });
+      const vFinal = r(vInicial + aceleracion * tiempo, 2);
+      if (vFinal > 100) fallo('La velocidad final (' + vFinal + ' m/s) no puede pasar de 100 m/s; reduce la aceleración, el tiempo o la velocidad inicial');
+      return {
+        valores: { fijos: { velocidad_inicial: vInicial, tiempo }, incognita: 'aceleracion', objetivo: { velocidad_final: vFinal }, rango: { min: 0.5, max: 10, paso: 0.5 } },
+        resultado: aceleracion,
+      };
+    }
     default:
       return fallo('Tipo de simulación no válido');
   }
@@ -298,6 +336,10 @@ function entradaDeSimulacion(tipo, v, resultado) {
     case 'pitagoras': return { cateto_a: v.fijos.cateto_a, cateto_b: resultado };
     case 'voltaje_serie': return { baterias: [...v.fijos.baterias, resultado] };
     case 'resistencias_serie': return { resistencias: [...v.fijos.resistencias, resultado] };
+    case 'tercera_ley_newton': return { fuerza: resultado, masa_a: v.fijos.masa_a, masa_b: v.fijos.masa_b };
+    case 'energia_cinetica': return { masa: v.fijos.masa, velocidad: resultado };
+    case 'transformacion_energia': return { masa: v.fijos.masa, altura_inicial: v.fijos.altura_inicial, altura: resultado };
+    case 'velocidad_aceleracion': return { velocidad_inicial: v.fijos.velocidad_inicial, tiempo: v.fijos.tiempo, aceleracion: resultado };
     default: return {};
   }
 }

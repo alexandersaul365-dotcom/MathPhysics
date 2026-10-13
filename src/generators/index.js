@@ -979,10 +979,34 @@ function generarVelocidad() {
 // RQNF19: aceleración 0.5-10 m/s² (incrementos de 0.5), velocidad 1-100 m/s,
 // tiempo 1-60 s.
 // ============================================================================
-function generarAceleracion() {
+// RQF13 / Propuesta4 ("Velocidad y aceleración", mover un objeto, ver trayectoria,
+// cambiar velocidad): simulación — velocidad inicial y tiempo fijos; el
+// estudiante ajusta la aceleración para llegar a una velocidad final objetivo.
+function generarVelocidadAceleracionSimulacion() {
   const a = redondear(entero(1, 20) * 0.5, 1); // 0.5 a 10.0, pasos de 0.5
-  const t = entero(1, 20); // subconjunto de 1-60, para valores finales razonables
-  const vi = entero(0, 50);
+  const t = entero(1, Math.min(20, Math.floor(100 / a))); // vf <= 100 m/s (RQNF19)
+  const vi = entero(0, Math.min(50, Math.floor(100 - a * t)));
+  const vf = redondear(vi + a * t, 2);
+
+  return {
+    tipo: 'simulacion',
+    enunciado: `Un objeto parte con ${vi} m/s y acelera durante ${t} s. Ajusta la aceleración para alcanzar ${vf} m/s`,
+    tipo_simulacion: 'velocidad_aceleracion',
+    valores_iniciales: {
+      fijos: { velocidad_inicial: vi, tiempo: t },
+      incognita: 'aceleracion',
+      objetivo: { velocidad_final: vf },
+      rango: { min: 0.5, max: 10, paso: 0.5 },
+    },
+    resultado_esperado: a,
+    xp: 30,
+  };
+}
+
+function generarAceleracionNumerica() {
+  const a = redondear(entero(1, 20) * 0.5, 1); // 0.5 a 10.0, pasos de 0.5
+  const t = entero(1, Math.min(20, Math.floor(100 / a))); // subconjunto de 1-60; vf <= 100 m/s
+  const vi = entero(0, Math.min(50, Math.floor(100 - a * t)));
   const vf = redondear(vi + a * t, 2);
 
   return {
@@ -993,6 +1017,10 @@ function generarAceleracion() {
     unidad: 'm/s²',
     xp: 20,
   };
+}
+
+function generarAceleracion() {
+  return Math.random() < 0.35 ? generarVelocidadAceleracionSimulacion() : generarAceleracionNumerica();
 }
 
 // ============================================================================
@@ -1069,10 +1097,81 @@ function generarSegundaLeyNewtonSimulacion() {
   };
 }
 
+
+// RQF13: simulación de Tercera Ley de Newton — la fuerza de acción es conocida;
+// hay que ajustar la fuerza de reacción hasta que sea igual y opuesta.
+function generarTerceraLeyNewtonSimulacion() {
+  const fuerza = redondear(entero(1, 2000) * 0.5, 1); // 0.5 a 1000, pasos de 0.5
+  const masaA = entero(1, 100);
+  const masaB = entero(1, 100);
+
+  return {
+    tipo: 'simulacion',
+    enunciado: `El bloque A empuja al bloque B con una fuerza de ${fuerza} N. Ajusta la fuerza de reacción que B ejerce sobre A`,
+    tipo_simulacion: 'tercera_ley_newton',
+    valores_iniciales: {
+      fijos: { masa_a: masaA, masa_b: masaB },
+      incognita: 'fuerza_reaccion',
+      objetivo: { fuerza_accion: fuerza },
+      rango: { min: 0.5, max: 1000, paso: 0.5 },
+    },
+    resultado_esperado: fuerza,
+    xp: 30,
+  };
+}
+
+// RQF13: simulación de energía cinética — masa fija, ajustar la velocidad
+// (1-50 m/s) para lograr una energía cinética objetivo (Ec = ½mv²).
+function generarEnergiaCineticaSimulacion() {
+  const masa = entero(1, 100);
+  const velocidad = entero(1, 50);
+  const ecObjetivo = redondear(0.5 * masa * velocidad * velocidad, 1);
+
+  return {
+    tipo: 'simulacion',
+    enunciado: `Ajusta la velocidad para lograr una energía cinética de ${ecObjetivo} J`,
+    tipo_simulacion: 'energia_cinetica',
+    valores_iniciales: {
+      fijos: { masa },
+      incognita: 'velocidad',
+      objetivo: { energia: ecObjetivo },
+      rango: { min: 1, max: 50, paso: 1 },
+    },
+    resultado_esperado: velocidad,
+    xp: 30,
+  };
+}
+
+// RQF13: transformación de energía — un objeto cae desde una altura inicial;
+// la energía potencial se convierte en cinética (Ep + Ec = constante). Hay que
+// ubicar el objeto en la altura donde tiene la energía cinética pedida.
+function generarTransformacionEnergiaSimulacion() {
+  const masa = entero(1, 100);
+  const alturaInicial = entero(2, 50);
+  const altura = entero(1, alturaInicial - 1);
+  const g = 9.8;
+  const ecObjetivo = redondear(masa * g * (alturaInicial - altura), 1);
+
+  return {
+    tipo: 'simulacion',
+    enunciado: `Un objeto cae desde ${alturaInicial} m. Ubícalo a la altura donde su energía cinética sea ${ecObjetivo} J`,
+    tipo_simulacion: 'transformacion_energia',
+    valores_iniciales: {
+      fijos: { masa, g, altura_inicial: alturaInicial },
+      incognita: 'altura',
+      objetivo: { energia_cinetica: ecObjetivo },
+      rango: { min: 0, max: alturaInicial, paso: 1 },
+    },
+    resultado_esperado: altura,
+    xp: 30,
+  };
+}
+
 function generarFuerza() {
-  const formato = elegir(['segunda_ley', 'segunda_ley', 'tercera_ley', 'simulacion']);
+  const formato = elegir(['segunda_ley', 'segunda_ley', 'tercera_ley', 'simulacion', 'simulacion_tercera']);
   if (formato === 'tercera_ley') return generarTerceraLeyNewton();
   if (formato === 'simulacion') return generarSegundaLeyNewtonSimulacion();
+  if (formato === 'simulacion_tercera') return generarTerceraLeyNewtonSimulacion();
   return generarSegundaLeyNewton();
 }
 
@@ -1130,9 +1229,11 @@ function generarEnergiaPotencialSimulacion() {
 }
 
 function generarEnergia() {
-  const formato = elegir(['cinetica', 'potencial', 'potencial', 'simulacion']);
+  const formato = elegir(['cinetica', 'potencial', 'potencial', 'simulacion', 'sim_cinetica', 'sim_transformacion']);
   if (formato === 'cinetica') return generarEnergiaCinetica();
   if (formato === 'simulacion') return generarEnergiaPotencialSimulacion();
+  if (formato === 'sim_cinetica') return generarEnergiaCineticaSimulacion();
+  if (formato === 'sim_transformacion') return generarTransformacionEnergiaSimulacion();
   return generarEnergiaPotencial();
 }
 
